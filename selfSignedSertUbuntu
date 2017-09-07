@@ -1,0 +1,174 @@
+chmod 400 /Users/v/Downloads/pearsonJen.pem
+
+ssh -i /Users/v/Downloads/pearsonJen.pem ubuntu@ec2-54-202-52-81.us-west-2.compute.amazonaws.com
+
+Self signed SSL https://www.digitalocean.com/community/tutorials/how-to-create-a-self-signed-ssl-certificate-for-apache-in-ubuntu-16-04
+
+1 TLS/SSL works by using a combination of a public certificate and a private key. The SSL key is kept secret on the server. It is used to encrypt content sent to clients. The SSL certificate is publicly shared with anyone requesting the content. It can be used to decrypt the content signed by the associated SSL key.
+We can create a self-signed key and certificate pair with OpenSSL in a single command:
+sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/apache-selfsigned.key -out /etc/ssl/certs/apache-selfsigned.crt
+
+
+2 While we are using OpenSSL, we should also create a strong Diffie-Hellman group, which is used in negotiating Perfect Forward Secrecy with clients.
+We can do this by typing:
+	•	sudo openssl dhparam -out /etc/ssl/certs/dhparam.pem 2048
+	•	3 Now we just need to modify our Apache configuration 
+	•	3.1. We will create a configuration snippet to specify strong default SSL settings.
+sudo nano /etc/apache2/conf-available/ssl-params.conf
+
+insert:
+
+	•	/etc/apache2/conf-available/ssl-params.conf
+	•	# from https://cipherli.st/
+	•	# and https://raymii.org/s/tutorials/Strong_SSL_Security_On_Apache2.html
+	•	
+	•	SSLCipherSuite EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH
+	•	SSLProtocol All -SSLv2 -SSLv3
+	•	SSLHonorCipherOrder On
+	•	# Disable preloading HSTS for now.  You can use the commented out header line that includes
+	•	# the "preload" directive if you understand the implications.
+	•	#Header always set Strict-Transport-Security "max-age=63072000; includeSubdomains; preload"
+	•	Header always set Strict-Transport-Security "max-age=63072000; includeSubdomains"
+	•	Header always set X-Frame-Options DENY
+	•	Header always set X-Content-Type-Options nosniff
+	•	# Requires Apache >= 2.4
+	•	SSLCompression off 
+	•	SSLSessionTickets Off
+	•	SSLUseStapling on 
+	•	SSLStaplingCache "shmcb:logs/stapling-cache(150000)"
+	•	
+	•	SSLOpenSSLConfCmd DHParameters "/etc/ssl/certs/dhparam.pem"
+	•	Save and close the file when you are finished.
+3.2. Modify the Default Apache SSL Virtual Host File
+
+let's back up the original SSL Virtual Host file:
+	•	sudo cp /etc/apache2/sites-available/default-ssl.conf /etc/apache2/sites-available/default-ssl.conf.bak
+Now, open the SSL Virtual Host file to make adjustments:
+	•	sudo nano /etc/apache2/sites-available/default-ssl.conf
+edit using url
+<IfModule mod_ssl.c>
+        <VirtualHost _default_:443>
+                ServerAdmin your_email@example.com
+                ServerName server_domain_or_IP
+
+                DocumentRoot /var/www/html
+
+                ErrorLog ${APACHE_LOG_DIR}/error.log
+                CustomLog ${APACHE_LOG_DIR}/access.log combined
+
+                SSLEngine on
+
+                SSLCertificateFile      /etc/ssl/certs/apache-selfsigned.crt
+                SSLCertificateKeyFile /etc/ssl/private/apache-selfsigned.key
+
+                <FilesMatch "\.(cgi|shtml|phtml|php)$">
+                                SSLOptions +StdEnvVars
+                </FilesMatch>
+                <Directory /usr/lib/cgi-bin>
+                                SSLOptions +StdEnvVars
+                </Directory>
+
+                BrowserMatch "MSIE [2-6]" \
+                               nokeepalive ssl-unclean-shutdown \
+                               downgrade-1.0 force-response-1.0
+
+        </VirtualHost>
+</IfModule>
+
+3.3 (Recommended) Modify the Unencrypted Virtual Host File to Redirect to HTTPS
+	•	sudo nano /etc/apache2/sites-available/000-default.conf
+Inside, within the VirtualHost configuration blocks, we just need to add a Redirect directive, pointing all traffic to the SSL version of the site:
+/etc/apache2/sites-available/000-default.conf
+<VirtualHost *:80>
+        . . .
+
+        Redirect "/" "https://54.202.52.81”
+
+        . . .
+</VirtualHost>
+Save and close the file when you are finished.
+
+
+Step 3: Adjust the Firewall
+If you have the ufw firewall enabled, as recommended by the prerequisite guides, might need to adjust the settings to allow for SSL traffic. Luckily, Apache registers a few profiles with ufw upon installation.
+We can see the available profiles by typing:
+	•	sudo ufw app list
+You should see a list like this:
+Output
+Available applications:
+  Apache
+  Apache Full
+  Apache Secure
+  OpenSSH
+You can see the current setting by typing:
+	•	sudo ufw status
+If you allowed only regular HTTP traffic earlier, your output might look like this:
+Output
+Status: active
+
+To                         Action      From
+--                         ------      ----
+OpenSSH                    ALLOW       Anywhere
+Apache                     ALLOW       Anywhere
+OpenSSH (v6)               ALLOW       Anywhere (v6)
+Apache (v6)                ALLOW       Anywhere (v6)
+To additionally let in HTTPS traffic, we can allow the "Apache Full" profile and then delete the redundant "Apache" profile allowance:
+	•	sudo ufw allow 'Apache Full'
+	•	sudo ufw delete allow 'Apache'
+Your status should look like this now:
+	•	sudo ufw status
+Output
+Status: active
+
+To                         Action      From
+--                         ------      ----
+OpenSSH                    ALLOW       Anywhere
+Apache Full                ALLOW       Anywhere
+OpenSSH (v6)               ALLOW       Anywhere (v6)
+Apache Full (v6)           ALLOW       Anywhere (v6)
+
+
+
+
+
+Step 4: Enable the Changes in Apache
+Now that we've made our changes and adjusted our firewall, we can enable the SSL and headers modules in Apache, enable our SSL-ready Virtual Host, and restart Apache.
+We can enable mod_ssl, the Apache SSL module, and mod_headers, needed by some of the settings in our SSL snippet, with the a2enmod command:
+	•	sudo a2enmod ssl
+	•	sudo a2enmod headers
+Next, we can enable our SSL Virtual Host with the a2ensite command:
+	•	sudo a2ensite default-ssl
+We will also need to enable our ssl-params.conf file, to read in the values we set:
+	•	sudo a2enconf ssl-params
+At this point, our site and the necessary modules are enabled. We should check to make sure that there are no syntax errors in our files. We can do this by typing:
+	•	sudo apache2ctl configtest
+If everything is successful, you will get a result that looks like this:
+Output
+AH00558: apache2: Could not reliably determine the server's fully qualified domain name, using 127.0.1.1. Set the 'ServerName' directive globally to suppress this message
+Syntax OK
+The first line is just a message telling you that the ServerName directive is not set globally. If you want to get rid of that message, you can set ServerName to your server's domain name or IP address in /etc/apache2/apache2.conf. This is optional as the message will do no harm.
+If your output has Syntax OK in it, your configuration file has no syntax errors. We can safely restart Apache to implement our changes:
+	•	sudo systemctl restart apache2
+Step 5: Test Encryption
+Now, we're ready to test our SSL server.
+Open your web browser and type https:// followed by your server's domain name or IP into the address bar:
+https://server_domain_or_IP
+
+Step 6: Change to a Permanent Redirect
+If your redirect worked correctly and you are sure you want to allow only encrypted traffic, you should modify the unencrypted Apache Virtual Host again to make the redirect permanent.
+Open your server block configuration file again:
+	•	sudo nano /etc/apache2/sites-available/000-default.conf
+Find the Redirect line we added earlier. Add permanent to that line, which changes the redirect from a 302 temporary redirect to a 301 permanent redirect:
+/etc/apache2/sites-available/000-default.conf
+<VirtualHost *:80>
+        . . .
+
+        Redirect permanent "/" "https://your_domain_or_IP/"
+
+        . . .
+</VirtualHost>
+Save and close the file.
+Check your configuration for syntax errors:
+	•	sudo apache2ctl configtest
+When you're ready, restart Apache to make the redirect permanent:
+	•	sudo systemctl restart apache2
