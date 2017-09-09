@@ -82,7 +82,8 @@ Inside, within the VirtualHost configuration blocks, we just need to add a Re
 <VirtualHost *:80>
         . . .
 
-        Redirect "/" "https://54.202.52.81”
+   ServerName ukrtv.biz
+   Redirect / https://ukrtv.biz/
 
         . . .
 </VirtualHost>
