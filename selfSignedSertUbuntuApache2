@@ -173,3 +173,10 @@ Check your configuration for syntax errors:
 	•	sudo apache2ctl configtest
 When you're ready, restart Apache to make the redirect permanent:
 	•	sudo systemctl restart apache2
+
+
+
+
+
+
+sudo scp -i /Users/vkoloyu/Downloads/pearsonJenkins.pem ubuntu@ec2-54-202-52-81.us-west-2.compute.amazonaws.com:/var/www/html/t.png /Users/vkoloyu
