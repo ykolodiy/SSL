@@ -1,0 +1,8 @@
+SSL on tomcat ubuntu
+
+1. uncomment server.xml connector 8443
+2. generate keytool: keytool -genkey -alias tomcat -keyalg RSA
+3 enter password and info > key store file is generated
+4 insert in server.xml connector: keystoreFile=/“root/.keystore” keystorePass=“yourpasshere”
+5 restart tomcat
+6 https://tomcat:8443
