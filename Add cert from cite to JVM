@@ -16,3 +16,42 @@ enter PW: changeit (Can be changeme on Mac)
 Import your .crt file
 
 er PW: changeit (Can be changeme on Mac)
++++++++++++++++++++++++++++++++++ if doesnt help
+
+1. Check the certificate
+
+Try to load the target URL in browser and view the site's certificate (usually it's accessible by the icon with the lock sign. It's on the left or right side of the browser's address bar) whether it's expired or untrusted by other reason.
+
+2. Install latest versions of JRE and JDK
+
+New versions usually come with the updated set of the trusted certificates.
+
+Also if it's possible, uninstall old versions. This will make misconfiguration errors explicit.
+
+3. Check your configuration:
+
+Check where your JAVA_HOME environment variable points to.
+Check which java version you use to run the program. In IntelliJ check:
+File -> Project Structure... -> Project Settings -> Project -> Project SDK:
+File -> Project Structure... -> Platform Settings -> SDKs
+4. Copy whole keystore from the new Java version
+
+If you develop under the JDK other than the latest available - try to replace the %JAVA_HOME%/jre/lib/security/cacerts file with the new one from the latest installed JRE (make a backup copy first) as @jeremy-goodell suggests in his answer
+
+5. Add certificate(s) to your keystore
+
+If nothing above solves your problem use keytool to save certificate(s) to the Java's keystore:
+
+keytool -trustcacerts -keystore "%JAVA_HOME%jre\lib\security\cacerts" -storepass changeit -importcert -alias <alias_name> -file <path_to_crt_file>
+File with the certificate can be obtained from the browser as @MagGGG suggests in his answer.
+
+Note 1: you may need to repeat this for every certificate in the chain to you site's certificate. Start from the root one.
+
+Note 2: <alias_name> should be unique among the keys in the store or keytool will show an error.
+
+To get list of all the certificates in the store you may run:
+
+keytool -list -trustcacerts -keystore "%JAVA_HOME%jre\lib\security\cacerts" -storepass changeit
+In case something goes wrong this will help you to remove certificate from the store:
+
+keytool -delete -alias <alias_name> -keystore "%JAVA_HOME%jre\lib\security\cacerts" -storepass changeit
