@@ -1,0 +1,18 @@
+to help run selenium on https and read codes 404 200 etc
+
+1 Go to URL in your firefox browser, click on HTTPS certificate chain (next to URL address). Click "more info" > "security" > "show  certificate" > "details" > "export..". Pickup the name and choose file type example.cer. Now you have file with keystore and you have to add it to your JVM
+2 Determine location of cacerts files, eg.   C:\Program Files\Java\jdk1.8.0_101\jre\lib\security\cacerts
+3 add cert to security\cacerts :    
+       keytool -importcert -file COMODOECCCertificationAuthority.crt -alias jetty -keystore $JAVA_HOME/jre/lib/security/cacerts
+
+
+
+or
+MY UI approach:
+
+Download http://www.keystore-explorer.org/
+Open $JAVA_HOME/jre/lib/security/cacerts
+enter PW: changeit (Can be changeme on Mac)
+Import your .crt file
+
+er PW: changeit (Can be changeme on Mac)
