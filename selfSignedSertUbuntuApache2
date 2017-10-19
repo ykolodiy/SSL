@@ -149,7 +149,8 @@ AH00558: apache2: Could not reliably determine the server's fully qualified doma
 Syntax OK
 The first line is just a message telling you that the ServerName directive is not set globally. If you want to get rid of that message, you can set ServerName to your server's domain name or IP address in /etc/apache2/apache2.conf. This is optional as the message will do no harm.
 If your output has Syntax OK in it, your configuration file has no syntax errors. We can safely restart Apache to implement our changes:
-	•	sudo systemctl restart apache2
+	sudo systemctl restart apache2   or
+	sudo /etc/init.d/apache2 restart
 Step 5: Test Encryption
 Now, we're ready to test our SSL server.
 Open your web browser and type https:// followed by your server's domain name or IP into the address bar:
